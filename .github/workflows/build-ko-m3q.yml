@@ -54,8 +54,6 @@ jobs:
         ./scripts/config --set-str CONFIG_LOCALVERSION "-android16-5-pd30ff70-abogkiS948NKSS4AZG3-4k"
         ./scripts/config --disable CONFIG_LOCALVERSION_AUTO
         make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- CC=clang LLVM=1 olddefconfig
-        ./scripts/config --disable CONFIG_MODVERSIONS
-        make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- CC=clang LLVM=1 olddefconfig
         echo "=== Final config ==="
         grep -E 'LOCALVERSION|MODULES|MODVERSIONS' .config
 
@@ -97,7 +95,8 @@ jobs:
         sha256sum $ko
         modinfo $ko || true
         strings $ko | grep 'vermagic=' || echo "vermagic not found in strings"
-        aarch64-linux-gnu-objdump -h $ko | grep -E '__versions|modinfo' || echo "no __versions (good)"
+        aarch64-linux-gnu-objdump -h $ko | grep -E '__versions|modinfo' || echo "no __versions"
+        aarch64-linux-gnu-readelf -x __versions $ko 2>/dev/null | head -5 || echo "__versions section not found"
 
     - name: Upload ko
       uses: actions/upload-artifact@v4
