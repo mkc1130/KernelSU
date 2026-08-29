@@ -49,12 +49,14 @@ jobs:
         ./scripts/kconfig/merge_config.sh -m .config galaxy_ogki_defconfig
         ./scripts/config --enable CONFIG_MODULES
         ./scripts/config --enable CONFIG_MODULE_UNLOAD
-        ./scripts/config --disable CONFIG_MODVERSIONS
         ./scripts/config --disable CONFIG_MODULE_SIG
         ./scripts/config --disable CONFIG_MODULE_SIG_FORCE
         ./scripts/config --set-str CONFIG_LOCALVERSION "-android16-5-pd30ff70-abogkiS948NKSS4AZG3-4k"
         ./scripts/config --disable CONFIG_LOCALVERSION_AUTO
         make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- CC=clang LLVM=1 olddefconfig
+        ./scripts/config --disable CONFIG_MODVERSIONS
+        make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- CC=clang LLVM=1 olddefconfig
+        echo "=== Final config ==="
         grep -E 'LOCALVERSION|MODULES|MODVERSIONS' .config
 
     - name: Modules prepare and SELinux headers
@@ -93,8 +95,9 @@ jobs:
         ko=$GITHUB_WORKSPACE/kernel/kernelsu.ko
         ls -la $ko
         sha256sum $ko
-        strings $ko | grep 'SMP.*aarch64' || echo "vermagic not found in strings"
-        aarch64-linux-gnu-objdump -h $ko | head -30
+        modinfo $ko || true
+        strings $ko | grep 'vermagic=' || echo "vermagic not found in strings"
+        aarch64-linux-gnu-objdump -h $ko | grep -E '__versions|modinfo' || echo "no __versions (good)"
 
     - name: Upload ko
       uses: actions/upload-artifact@v4
