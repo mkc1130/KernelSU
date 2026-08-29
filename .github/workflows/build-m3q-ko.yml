@@ -2,6 +2,7 @@ name: Build KernelSU v3.3.0 .ko for SM-S948N (m3q)
 
 on:
   workflow_dispatch:
+    inputs: {}
 
 jobs:
   build-ko:
