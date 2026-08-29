@@ -13,8 +13,12 @@ jobs:
     steps:
     - uses: actions/checkout@v4
       with:
-        ref: v3.3.0
         fetch-depth: 0
+
+    - name: Save main-branch assets then switch to v3.3.0
+      run: |
+        cp Module.symvers.m3q /tmp/Module.symvers.m3q
+        git checkout v3.3.0
 
     - name: Download Samsung kernel source
       run: |
@@ -66,7 +70,7 @@ jobs:
 
     - name: Install Module.symvers from running kernel
       run: |
-        cp $GITHUB_WORKSPACE/Module.symvers.m3q $KERNEL_DIR/Module.symvers
+        cp /tmp/Module.symvers.m3q $KERNEL_DIR/Module.symvers
         echo "Module.symvers: $(wc -l < $KERNEL_DIR/Module.symvers) symbols"
 
     - name: Build kernelsu ko
