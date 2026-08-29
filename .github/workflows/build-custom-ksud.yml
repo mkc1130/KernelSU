@@ -1,4 +1,4 @@
-name: Build custom ksud (v3.2.5 LKM + v3.3.0 userspace)
+name: Build custom ksud (m3q LKM + v3.3.0 userspace)
 
 on:
   workflow_dispatch:
@@ -9,18 +9,17 @@ jobs:
     steps:
     - uses: actions/checkout@v7
       with:
-        ref: v3.3.0
         fetch-depth: 0
 
-    - name: Download v3.2.5 kernel module
+    - name: Checkout v3.3.0 source with m3q .ko
       run: |
-        gh release download v3.2.5 \
-          --repo tiann/KernelSU \
-          --pattern 'android16-6.12_kernelsu.ko' \
-          --dir ./userspace/ksud/bin/aarch64/
-        ls -la ./userspace/ksud/bin/aarch64/
-      env:
-        GH_TOKEN: ${{ github.token }}
+        # Keep the m3q-specific .ko from main branch
+        cp userspace/ksud/bin/aarch64/android16-6.12_kernelsu.ko /tmp/m3q_kernelsu.ko
+        git checkout v3.3.0
+        cp /tmp/m3q_kernelsu.ko userspace/ksud/bin/aarch64/android16-6.12_kernelsu.ko
+        echo "=== Embedded .ko ==="
+        ls -la userspace/ksud/bin/aarch64/
+        sha256sum userspace/ksud/bin/aarch64/android16-6.12_kernelsu.ko
 
     - name: Setup Rust
       run: |
@@ -48,5 +47,5 @@ jobs:
     - name: Upload ksud
       uses: actions/upload-artifact@v7
       with:
-        name: ksud-custom-v3.3.0-with-v3.2.5-lkm
+        name: ksud-m3q-v3.3.0
         path: target/aarch64-linux-android/release/ksud
