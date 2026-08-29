@@ -64,6 +64,11 @@ jobs:
         ../../scripts/selinux/genheaders/genheaders include/flask.h include/av_permissions.h
         ls -la include/flask.h include/av_permissions.h
 
+    - name: Install Module.symvers from running kernel
+      run: |
+        cp $GITHUB_WORKSPACE/Module.symvers.m3q $KERNEL_DIR/Module.symvers
+        echo "Module.symvers: $(wc -l < $KERNEL_DIR/Module.symvers) symbols"
+
     - name: Build kernelsu ko
       run: |
         make -C $KERNEL_DIR \
