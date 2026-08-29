@@ -40,7 +40,7 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu \
           build-essential bc flex bison libssl-dev libelf-dev \
-          clang lld llvm libdw-dev
+          clang lld llvm
 
     - name: Configure kernel
       run: |
@@ -49,7 +49,7 @@ jobs:
         ./scripts/kconfig/merge_config.sh -m .config galaxy_ogki_defconfig
         ./scripts/config --enable CONFIG_MODULES
         ./scripts/config --enable CONFIG_MODULE_UNLOAD
-        ./scripts/config --enable CONFIG_MODVERSIONS
+        ./scripts/config --disable CONFIG_MODVERSIONS
         ./scripts/config --disable CONFIG_MODULE_SIG
         ./scripts/config --disable CONFIG_MODULE_SIG_FORCE
         ./scripts/config --set-str CONFIG_LOCALVERSION "-android16-5-pd30ff70-abogkiS948NKSS4AZG3-4k"
