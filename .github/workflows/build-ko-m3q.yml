@@ -1,0 +1,165 @@
+name: Build m3q ko
+
+on:
+  workflow_dispatch:
+
+env:
+  KERNEL_DIR: /tmp/samsung/kernel_platform/common
+  TARGET_VERMAGIC: "6.12.30-android16-5-pd30ff70-abogkiS948NKSS4AZG3-4k SMP preempt mod_unload modversions aarch64"
+
+jobs:
+  build-ko:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: v3.3.0
+        fetch-depth: 0
+
+    - name: Download Samsung kernel source
+      run: |
+        gh release download kernel-source -p "Kernel.tar.gz" -D /tmp/
+        ls -lh /tmp/Kernel.tar.gz
+      env:
+        GH_TOKEN: ${{ github.token }}
+
+    - name: Extract kernel source
+      run: |
+        mkdir -p /tmp/samsung
+        cd /tmp/samsung
+        tar xzf /tmp/Kernel.tar.gz ./kernel_platform/common/
+        rm /tmp/Kernel.tar.gz
+        ls $KERNEL_DIR/Makefile
+
+    - name: Install build deps
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu \
+          build-essential bc flex bison libssl-dev libelf-dev
+
+    - name: Configure kernel
+      run: |
+        cd $KERNEL_DIR
+        make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- gki_defconfig
+        ./scripts/kconfig/merge_config.sh -m .config galaxy_ogki_defconfig
+        ./scripts/config --enable CONFIG_MODULES
+        ./scripts/config --enable CONFIG_MODULE_UNLOAD
+        ./scripts/config --disable CONFIG_MODVERSIONS
+        ./scripts/config --disable CONFIG_MODULE_SIG
+        ./scripts/config --disable CONFIG_MODULE_SIG_FORCE
+        ./scripts/config --set-str CONFIG_LOCALVERSION "-android16-5-pd30ff70-abogkiS948NKSS4AZG3-4k"
+        ./scripts/config --disable CONFIG_LOCALVERSION_AUTO
+        make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- olddefconfig
+        grep -E 'LOCALVERSION|MODULES|MODVERSIONS' .config
+
+    - name: Modules prepare
+      run: |
+        cd $KERNEL_DIR
+        make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- modules_prepare -j$(nproc)
+
+    - name: Build kernelsu ko
+      run: |
+        make -C $KERNEL_DIR \
+          ARCH=arm64 \
+          CROSS_COMPILE=aarch64-linux-gnu- \
+          M=$GITHUB_WORKSPACE/kernel \
+          src=$GITHUB_WORKSPACE/kernel \
+          CONFIG_KSU=m \
+          modules -j$(nproc)
+        ls -la $GITHUB_WORKSPACE/kernel/kernelsu.ko
+        file $GITHUB_WORKSPACE/kernel/kernelsu.ko
+
+    - name: Patch vermagic
+      shell: python3 {0}
+      run: |
+        import subprocess, re
+
+        ko = "${{ github.workspace }}/kernel/kernelsu.ko"
+        target = "${{ env.TARGET_VERMAGIC }}"
+
+        with open(ko, "rb") as f:
+            data = f.read()
+
+        m = re.search(rb"6\.12\.\d+\S* SMP[^\x00]*aarch64", data)
+        if not m:
+            print("ERROR: no vermagic found")
+            raise SystemExit(1)
+        current = m.group(0).decode()
+        print(f"Current: {current}")
+        print(f"Target:  {target}")
+        if current == target:
+            print("Already correct")
+        else:
+            old = current.encode() + b"\x00"
+            new = target.encode() + b"\x00"
+            if len(new) > len(old):
+                new = new[: len(old)]
+            else:
+                new = new.ljust(len(old), b"\x00")
+            data = data.replace(old, new, 1)
+            with open(ko, "wb") as f:
+                f.write(data)
+            print("Patched")
+
+    - name: Show ko info
+      run: |
+        ko=$GITHUB_WORKSPACE/kernel/kernelsu.ko
+        ls -la $ko
+        sha256sum $ko
+        strings $ko | grep 'SMP.*aarch64'
+        aarch64-linux-gnu-objdump -h $ko | head -30
+
+    - name: Upload ko
+      uses: actions/upload-artifact@v4
+      with:
+        name: kernelsu-v330-m3q
+        path: kernel/kernelsu.ko
+
+  build-ksud:
+    needs: build-ko
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - uses: actions/download-artifact@v4
+      with:
+        name: kernelsu-v330-m3q
+        path: /tmp/
+
+    - name: Prepare ksud source
+      run: |
+        cp /tmp/kernelsu.ko userspace/ksud/bin/aarch64/android16-6.12_kernelsu.ko
+        git checkout v3.3.0 -- userspace/ksud/
+        cp /tmp/kernelsu.ko userspace/ksud/bin/aarch64/android16-6.12_kernelsu.ko
+        sha256sum userspace/ksud/bin/aarch64/android16-6.12_kernelsu.ko
+
+    - name: Setup Rust
+      run: |
+        rustup update stable
+        rustup target add aarch64-linux-android
+
+    - uses: Swatinem/rust-cache@v2
+      with:
+        workspaces: userspace/ksud
+        cache-targets: false
+
+    - uses: nttld/setup-ndk@v1
+      id: setup-ndk
+      with:
+        ndk-version: r29
+
+    - name: Build ksud
+      env:
+        ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
+      run: |
+        source .github/scripts/setup-rust-build.sh aarch64-linux-android 26
+        cargo build --target aarch64-linux-android --release \
+          --manifest-path ./userspace/ksud/Cargo.toml
+
+    - name: Upload ksud
+      uses: actions/upload-artifact@v4
+      with:
+        name: ksud-m3q-v330-full
+        path: target/aarch64-linux-android/release/ksud
