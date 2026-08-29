@@ -49,7 +49,7 @@ jobs:
         ./scripts/kconfig/merge_config.sh -m .config galaxy_ogki_defconfig
         ./scripts/config --enable CONFIG_MODULES
         ./scripts/config --enable CONFIG_MODULE_UNLOAD
-        ./scripts/config --disable CONFIG_MODVERSIONS
+        ./scripts/config --enable CONFIG_MODVERSIONS
         ./scripts/config --disable CONFIG_MODULE_SIG
         ./scripts/config --disable CONFIG_MODULE_SIG_FORCE
         ./scripts/config --set-str CONFIG_LOCALVERSION "-android16-5-pd30ff70-abogkiS948NKSS4AZG3-4k"
@@ -87,38 +87,6 @@ jobs:
           modules -j$(nproc)
         ls -la $GITHUB_WORKSPACE/kernel/kernelsu.ko
         file $GITHUB_WORKSPACE/kernel/kernelsu.ko
-
-    - name: Patch vermagic
-      shell: python3 {0}
-      run: |
-        import subprocess, re
-
-        ko = "${{ github.workspace }}/kernel/kernelsu.ko"
-        target = "${{ env.TARGET_VERMAGIC }}"
-
-        with open(ko, "rb") as f:
-            data = f.read()
-
-        m = re.search(rb"6\.12\.\d+\S* SMP[^\x00]*aarch64", data)
-        if not m:
-            print("ERROR: no vermagic found")
-            raise SystemExit(1)
-        current = m.group(0).decode()
-        print(f"Current: {current}")
-        print(f"Target:  {target}")
-        if current == target:
-            print("Already correct")
-        else:
-            old = current.encode() + b"\x00"
-            new = target.encode() + b"\x00"
-            if len(new) > len(old):
-                new = new[: len(old)]
-            else:
-                new = new.ljust(len(old), b"\x00")
-            data = data.replace(old, new, 1)
-            with open(ko, "wb") as f:
-                f.write(data)
-            print("Patched")
 
     - name: Show ko info
       run: |
