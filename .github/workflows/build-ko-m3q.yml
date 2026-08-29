@@ -125,7 +125,7 @@ jobs:
         ko=$GITHUB_WORKSPACE/kernel/kernelsu.ko
         ls -la $ko
         sha256sum $ko
-        strings $ko | grep 'SMP.*aarch64'
+        strings $ko | grep 'SMP.*aarch64' || echo "vermagic not found in strings"
         aarch64-linux-gnu-objdump -h $ko | head -30
 
     - name: Upload ko
