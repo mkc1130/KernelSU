@@ -39,7 +39,7 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu \
-          build-essential bc flex bison libssl-dev libelf-dev \
+          build-essential bc flex bison libssl-dev libelf-dev libdw-dev \
           clang lld llvm
 
     - name: Configure kernel
