@@ -83,6 +83,7 @@ jobs:
           M=$GITHUB_WORKSPACE/kernel \
           src=$GITHUB_WORKSPACE/kernel \
           CONFIG_KSU=m \
+          KBUILD_MODPOST_WARN=1 \
           modules -j$(nproc)
         ls -la $GITHUB_WORKSPACE/kernel/kernelsu.ko
         file $GITHUB_WORKSPACE/kernel/kernelsu.ko
