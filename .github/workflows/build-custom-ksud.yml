@@ -1,0 +1,52 @@
+name: Build custom ksud (v3.2.5 LKM + v3.3.0 userspace)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v7
+      with:
+        ref: v3.3.0
+        fetch-depth: 0
+
+    - name: Download v3.2.5 kernel module
+      run: |
+        gh release download v3.2.5 \
+          --repo tiann/KernelSU \
+          --pattern 'android16-6.12_kernelsu.ko' \
+          --dir ./userspace/ksud/bin/aarch64/
+        ls -la ./userspace/ksud/bin/aarch64/
+      env:
+        GH_TOKEN: ${{ github.token }}
+
+    - name: Setup Rust
+      run: |
+        rustup update stable
+        rustup target add aarch64-linux-android
+
+    - uses: Swatinem/rust-cache@v2
+      with:
+        workspaces: userspace/ksud
+        cache-targets: false
+
+    - uses: nttld/setup-ndk@v1
+      id: setup-ndk
+      with:
+        ndk-version: r29
+
+    - name: Build ksud
+      env:
+        ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
+      run: |
+        source .github/scripts/setup-rust-build.sh aarch64-linux-android 26
+        cargo build --target aarch64-linux-android --release \
+          --manifest-path ./userspace/ksud/Cargo.toml
+
+    - name: Upload ksud
+      uses: actions/upload-artifact@v7
+      with:
+        name: ksud-custom-v3.3.0-with-v3.2.5-lkm
+        path: target/aarch64-linux-android/release/ksud
