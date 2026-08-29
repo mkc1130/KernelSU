@@ -75,6 +75,15 @@ jobs:
         cp /tmp/Module.symvers.m3q $KERNEL_DIR/Module.symvers
         echo "Module.symvers: $(wc -l < $KERNEL_DIR/Module.symvers) symbols"
 
+    - name: Patch v3.3.0 for Samsung 6.12 compat
+      run: |
+        cd $GITHUB_WORKSPACE/kernel
+        # Revert register_trace_prio_sys_enter(INT_MIN) back to register_trace_sys_enter
+        # Samsung kernel 6.12 panics with the prio variant
+        sed -i 's/register_trace_prio_sys_enter(ksu_sys_enter_handler, NULL, INT_MIN)/register_trace_sys_enter(ksu_sys_enter_handler, NULL)/' hook/syscall_hook_manager.c
+        grep -n 'register_trace.*sys_enter' hook/syscall_hook_manager.c
+        echo "=== patched ==="
+
     - name: Build kernelsu ko
       run: |
         make -C $KERNEL_DIR \
