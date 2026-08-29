@@ -53,7 +53,9 @@ jobs:
         ./scripts/config --disable CONFIG_MODULE_SIG_FORCE
         ./scripts/config --set-str CONFIG_LOCALVERSION "-android16-5-pd30ff70-abogkiS948NKSS4AZG3-4k"
         ./scripts/config --disable CONFIG_LOCALVERSION_AUTO
+        ./scripts/config --enable CONFIG_EXTENDED_MODVERSIONS
         make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- CC=clang LLVM=1 olddefconfig
+        grep -E 'EXTENDED_MODVERSIONS' .config
         echo "=== Final config ==="
         grep -E 'LOCALVERSION|MODULES|MODVERSIONS' .config
 
