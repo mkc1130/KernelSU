@@ -22,6 +22,7 @@
 #include "hook/syscall_event_bridge.h"
 #if defined(__riscv)
 #include "hook/riscv64/syscall_regs.h"
+#endif
 #include "policy/allowlist.h"
 
 static bool syscall_hook_manager_initialized;
