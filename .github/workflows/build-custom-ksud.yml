@@ -1,4 +1,4 @@
-name: Build custom ksud (m3q LKM + v3.3.0 userspace)
+name: Build custom ksud (m3q LKM + v3.3.1 userspace)
 
 on:
   workflow_dispatch:
@@ -9,14 +9,11 @@ jobs:
     steps:
     - uses: actions/checkout@v7
       with:
+        ref: samsung-main
         fetch-depth: 0
 
-    - name: Checkout v3.3.0 source with m3q .ko
+    - name: Verify embedded .ko
       run: |
-        # Keep the m3q-specific .ko from main branch
-        cp userspace/ksud/bin/aarch64/android16-6.12_kernelsu.ko /tmp/m3q_kernelsu.ko
-        git checkout v3.3.0
-        cp /tmp/m3q_kernelsu.ko userspace/ksud/bin/aarch64/android16-6.12_kernelsu.ko
         echo "=== Embedded .ko ==="
         ls -la userspace/ksud/bin/aarch64/
         sha256sum userspace/ksud/bin/aarch64/android16-6.12_kernelsu.ko
@@ -47,5 +44,5 @@ jobs:
     - name: Upload ksud
       uses: actions/upload-artifact@v7
       with:
-        name: ksud-m3q-v3.3.0
+        name: ksud-m3q-v331
         path: target/aarch64-linux-android/release/ksud

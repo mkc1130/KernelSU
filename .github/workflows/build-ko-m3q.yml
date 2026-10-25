@@ -13,12 +13,12 @@ jobs:
     steps:
     - uses: actions/checkout@v4
       with:
+        ref: samsung-main
         fetch-depth: 0
 
-    - name: Save main-branch assets then switch to v3.3.0
+    - name: Save main-branch assets
       run: |
         cp Module.symvers.m3q /tmp/Module.symvers.m3q
-        git checkout v3.3.0
 
     - name: Download Samsung kernel source
       run: |
@@ -63,7 +63,6 @@ jobs:
       run: |
         cd $KERNEL_DIR
         make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- CC=clang LLVM=1 modules_prepare -j$(nproc)
-        # Generate SELinux flask headers (needed by KernelSU)
         make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- CC=clang LLVM=1 \
           scripts/selinux/genheaders/genheaders
         cd security/selinux
@@ -75,15 +74,6 @@ jobs:
         cp /tmp/Module.symvers.m3q $KERNEL_DIR/Module.symvers
         echo "Module.symvers: $(wc -l < $KERNEL_DIR/Module.symvers) symbols"
 
-    - name: Patch v3.3.0 for Samsung 6.12 compat
-      run: |
-        cd $GITHUB_WORKSPACE/kernel
-        # Revert register_trace_prio_sys_enter(INT_MIN) back to register_trace_sys_enter
-        # Samsung kernel 6.12 panics with the prio variant
-        sed -i 's/register_trace_prio_sys_enter(ksu_sys_enter_handler, NULL, INT_MIN)/register_trace_sys_enter(ksu_sys_enter_handler, NULL)/' hook/syscall_hook_manager.c
-        grep -n 'register_trace.*sys_enter' hook/syscall_hook_manager.c
-        echo "=== patched ==="
-
     - name: Build kernelsu ko
       run: |
         make -C $KERNEL_DIR \
@@ -94,6 +84,7 @@ jobs:
           M=$GITHUB_WORKSPACE/kernel \
           src=$GITHUB_WORKSPACE/kernel \
           CONFIG_KSU=m \
+          CONFIG_KSU_SAMSUNG_KDP=y \
           KBUILD_MODPOST_WARN=1 \
           modules -j$(nproc)
         ls -la $GITHUB_WORKSPACE/kernel/kernelsu.ko
@@ -112,7 +103,7 @@ jobs:
     - name: Upload ko
       uses: actions/upload-artifact@v4
       with:
-        name: kernelsu-v330-m3q
+        name: kernelsu-v331-m3q
         path: kernel/kernelsu.ko
 
   build-ksud:
@@ -121,17 +112,16 @@ jobs:
     steps:
     - uses: actions/checkout@v4
       with:
+        ref: samsung-main
         fetch-depth: 0
 
     - uses: actions/download-artifact@v4
       with:
-        name: kernelsu-v330-m3q
+        name: kernelsu-v331-m3q
         path: /tmp/
 
-    - name: Prepare ksud source
+    - name: Embed .ko in ksud source
       run: |
-        cp /tmp/kernelsu.ko userspace/ksud/bin/aarch64/android16-6.12_kernelsu.ko
-        git checkout v3.3.0 -- userspace/ksud/
         cp /tmp/kernelsu.ko userspace/ksud/bin/aarch64/android16-6.12_kernelsu.ko
         sha256sum userspace/ksud/bin/aarch64/android16-6.12_kernelsu.ko
 
@@ -161,5 +151,5 @@ jobs:
     - name: Upload ksud
       uses: actions/upload-artifact@v4
       with:
-        name: ksud-m3q-v330-full
+        name: ksud-m3q-v331
         path: target/aarch64-linux-android/release/ksud
